@@ -1,0 +1,46 @@
+# Builds Diogo's own openGym APK (the "OpenGymTest" debug build, installs next to the official app).
+# Run it from the Actions tab: "Build my APK" -> "Run workflow". The APK is in the run's Artifacts.
+name: Build my APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build the mobile web app and copy it into Android
+        working-directory: frontend
+        run: npm run build:mobile
+
+      - name: Build the APK
+        working-directory: frontend/android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleSideloadDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openGym-diogo-apk
+          path: frontend/android/app/build/outputs/apk/sideload/debug/*.apk
+          retention-days: 30
