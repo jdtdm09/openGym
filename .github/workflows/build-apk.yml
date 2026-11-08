@@ -34,6 +34,20 @@ jobs:
         working-directory: frontend
         run: npm run build:mobile
 
+      # Always sign with the same key (repo secret DEBUG_KEYSTORE_B64), so a new build installs
+      # over the old one and keeps the app's data. Without the secret Gradle makes a random key.
+      - name: Use my fixed signing key
+        env:
+          KS: ${{ secrets.DEBUG_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KS" ]; then
+            mkdir -p ~/.android
+            echo "$KS" | base64 -d > ~/.android/debug.keystore
+            echo "Fixed signing key in place"
+          else
+            echo "::warning::DEBUG_KEYSTORE_B64 is not set; this APK gets a random key"
+          fi
+
       - name: Build the APK
         working-directory: frontend/android
         run: |
