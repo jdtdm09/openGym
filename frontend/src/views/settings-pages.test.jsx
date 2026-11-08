@@ -138,7 +138,8 @@ describe('the root', () => {
     expect(titles()).toContain('Reminders')
     expect(titles()).not.toContain('AI Coach')
     expect(host.querySelector('.sp-acct .lrow-t').textContent).toBe('Dana')
-    expect(host.querySelector('.sp-avatar').textContent).toBe('D')
+    // Diogo's fork: a signed-in profile shows a photo instead of the initial.
+    expect(host.querySelector('.sp-avatar img')).toBeTruthy()
     mocks.user = null
     mocks.MOBILE = true
     mount()

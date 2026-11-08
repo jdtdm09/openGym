@@ -146,6 +146,25 @@ export default function Settings({ page = null, find = null, via = null, entryKe
   const [credsV, setCredsV] = useState(0)
   const credsChanged = () => { passkeys.load(); setCredsV(v => v + 1) }
   const { update, importConflict, importBackup, setUnit, resetEverything: resetAll, setUser, pullState, pushState, resetDemo } = useStore()
+  // Diogo's fork: pick the profile photo from the gallery. Centre-cropped to a square and shrunk
+  // to 256 px JPEG (~20 KB) so it rides in the synced state like any other setting.
+  const avatarInput = useRef(null)
+  const pickAvatar = async e => {
+    const file = e.target.files && e.target.files[0]
+    e.target.value = ''
+    if (!file) return
+    try {
+      const url = URL.createObjectURL(file)
+      const img = await new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = bad; i.src = url })
+      const side = Math.min(img.naturalWidth, img.naturalHeight)
+      const c = document.createElement('canvas'); c.width = c.height = 256
+      c.getContext('2d').drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, 256, 256)
+      URL.revokeObjectURL(url)
+      const data = c.toDataURL('image/jpeg', 0.85)
+      update(s => { s.avatarImg = data })
+      toast('Foto de perfil atualizada')
+    } catch { toast('Não consegui abrir essa imagem') }
+  }
   const toast = useUI(s => s.toast)
   const fileRef = useRef(null)
   const importRef = useRef(null)
@@ -1188,6 +1207,11 @@ export default function Settings({ page = null, find = null, via = null, entryKe
     </>,
 
     account: () => <>
+      {user && !DEMO && <Section title="Foto de perfil">
+        <input ref={avatarInput} type="file" accept="image/*" style={{ display: 'none' }} onChange={pickAvatar} />
+        <Row icon="image" iconTint="var(--acc)" title="Mudar foto" subtitle="Escolhe uma imagem da galeria" accessory="chevron" onClick={() => avatarInput.current?.click()} />
+        {S.avatarImg && <Row icon="trash" iconTint="var(--red)" title="Remover foto" danger onClick={() => { update(s => { s.avatarImg = null }); toast('Foto removida') }} />}
+      </Section>}
       {/* The server: which one, which account, how that stands, "Sync now". A paired phone's
           Admin and Disconnect sit in the same block; a browser's account rows follow in their own. */}
       {user && !DEMO && <ServerSyncSection>
@@ -1279,6 +1303,7 @@ export default function Settings({ page = null, find = null, via = null, entryKe
 }
 
 function SettingsRoot({ ctx, preview, open, user, sync, home, go, entryKey }) {
+  const avatarImg = useStore(s => s.S.avatarImg)
   // The router's key for this history entry, taken once. From the router rather than
   // window.history: drawn under an edge swipe back the page is the entry before the current one.
   const [key] = useState(() => (entryKey && entryKey !== 'default' && entryKey !== 'back-preview' ? entryKey : window.history.state?.key || null))
@@ -1315,7 +1340,7 @@ function SettingsRoot({ ctx, preview, open, user, sync, home, go, entryKey }) {
     </Section> : <div className="sp-empty">{t('No setting matches “{0}”.', q.trim())}</div>) : <>
       <Section>
         <button className="lrow tap sp-acct" data-tour="settings-account" onClick={() => open('account')}>
-          <span className={'sp-avatar' + (initial ? ' on' : '')} aria-hidden="true">{initial ? <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : <Icon name="personCircle" />}</span>
+          <span className={'sp-avatar' + (initial ? ' on' : '')} aria-hidden="true">{initial ? <img src={avatarImg || avatarUrl} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : <Icon name="personCircle" />}</span>
           <span className="lrow-m"><span className="lrow-t">{acct.title}</span><span className="lrow-s">{acct.sub}</span></span>
           <Icon name="chevronRight" className="lrow-c" />
         </button>
